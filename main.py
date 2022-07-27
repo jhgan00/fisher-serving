@@ -52,10 +52,15 @@ app = FastAPI()
 @torch.no_grad()
 @app.post("/disease")
 async def get_bboxes_and_diseases(item: Item) -> JSONResponse:
-    """요청된 이미지에 대해 넙치 객체의 바운딩 박스, 키포인트, 질병 여부를 반환
+    """
+    요청된 이미지에 대해 넙치 객체의 바운딩 박스, 키포인트, 질병 여부를 반환
+    - 바운딩 박스: x1, y1, x2, y2 순서 (Top left & bottom right)
+    - 키포인트: 입 x, 입 y, 꼬리x, 꼬리 y, 등 x, 등 y, 배 x, 배 y
     # TODO. 현재는 fisher 서버의 validation 이미지 경로를 읽도록 되어있음. REST API 에서 어떤 식으로 이미지 교환하는지 알아보고 수정 필요
+
     :param img_fpath: 처리할 이미지 경로 (fisher 서버)
     :return: JSONResponse
+
     """
 
     # 요청된 프레임 읽기
@@ -88,7 +93,34 @@ async def get_bboxes_and_diseases(item: Item) -> JSONResponse:
                               params.detection.threshold, params.detection.iou_threshold)
     out = invert_affine(framed_metas, out)
     out = filtering_overlap(out, params.detection.score_threshold)[0]
-    out['rois'] = out['rois'].astype(np.int)
+
+    out['rois'] = out['rois'].astype(np.int)  # ROI: x1, y1, x2, y2 순서
+
+    # Keypoint: Pixel space 에서의 좌표로 변환
+    for i in range(len(out)):
+
+        kp, roi = out['kps'][i], out['rois'][i]
+        x1, y1, x2, y2 = roi
+
+        out['kps'][i][:] = np.array([
+            # KP 1
+            int(kp[0] * (x2 - x1 + 1) + x1 + 0.5),
+            int(kp[1] * (y2 - y1 + 1) + y1 + 0.5),
+
+            # KP 2
+            int(kp[2] * (x2 - x1 + 1) + x1 + 0.5),
+            int(kp[3] * (y2 - y1 + 1) + y1 + 0.5),
+
+            # KP 3
+            int(kp[4] * (x2 - x1 + 1) + x1 + 0.5),
+            int(kp[5] * (y2 - y1 + 1) + y1 + 0.5),
+
+            # KP 3
+            int(kp[6] * (x2 - x1 + 1) + x1 + 0.5),
+            int(kp[7] * (y2 - y1 + 1) + y1 + 0.5)
+        ])
+    out['kps'] = out['kps'].astype(int)
+
     ####################################################################################################################
 
     ####################################################################################################################
@@ -99,10 +131,10 @@ async def get_bboxes_and_diseases(item: Item) -> JSONResponse:
     # 디텍션 모델의 결과를 활용하여 바운딩 박스 크롭하고 배치로 묶기
     normalized_img = (frame / 255 - params.mean) / params.std
     cropped_imgs = []
-    for (x, y, w, h) in out['rois']:
+    for (x1, y1, x2, y2) in out['rois']:
         input_size = params.classification.input_size
         # TODO: aspect_aware padding 이후 리사이징하도록 수정
-        cropped_img = cv2.resize(normalized_img[y:y+h, x:x+w], (input_size, input_size))
+        cropped_img = cv2.resize(normalized_img[y1:y2+1, x1:x2+1], (input_size, input_size))
         cropped_imgs.append(cropped_img)
     x = torch.stack([torch.from_numpy(img) for img in cropped_imgs], 0)
     x = x.to(device).permute(0, 3, 1, 2).type(torch.float)
