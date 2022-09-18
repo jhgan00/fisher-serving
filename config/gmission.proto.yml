@@ -1,0 +1,19 @@
+# detection model config
+detection:
+  model_path: './resources/onnx/yolov5/best.onnx'
+  input_size: 640
+  device: 'cuda:2'
+  conf_thres: 0.25
+  iou_thres: 0.45
+
+# classification model config
+classification:
+  model_path: './resources/onnx/efficientnet/efficientnet.b0.onnx'
+  input_size: 256
+  device: 'cuda:2'
+
+# segmentation model config
+segmentation:
+  model_path: './resources/onnx/unet/unet.onnx'
+  input_size: 256
+  device: 'cuda:2'
