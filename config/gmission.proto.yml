@@ -1,19 +1,22 @@
 # detection model config
 detection:
-  model_path: './resources/onnx/yolov5/best.onnx'
+  model_path: './resources/onnx/yolov5.onnx'
   input_size: 640
-  device: 'cuda:2'
+  device_id: 0
   conf_thres: 0.25
-  iou_thres: 0.45
+  iou_thres: 0.25
 
 # classification model config
 classification:
-  model_path: './resources/onnx/efficientnet/efficientnet.b0.onnx'
+  model_path: './resources/onnx/efficientnet.b0.onnx'
   input_size: 256
-  device: 'cuda:2'
+  device_id: 0
+  batch_size: 8
 
 # segmentation model config
 segmentation:
-  model_path: './resources/onnx/unet/unet.onnx'
+  model_path: './resources/onnx/unet.onnx'
   input_size: 256
-  device: 'cuda:2'
+  device_id: 0
+  batch_size: 8
+  threshold: 0.6

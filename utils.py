@@ -6,8 +6,8 @@ import numpy as np
 import torch
 import torchvision
 
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1).astype(np.float32)
+IMAGENET_STD = np.array([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1).astype(np.float32)
 
 
 def xyxy2xywh(x):
@@ -267,30 +267,12 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     return output
 
 
-def refine_img_size(image, size=256):
-    # rectangle
-    h, w, c = image.shape
-
-    if h >= w:
-        ratio = size / h
-        image = cv2.resize(image, dsize=(int(w * ratio), size))
-        _, w, _ = image.shape
-        pad_t = size - w
-        pad_l = pad_t // 2
-        image = np.pad(image,
-                       ((0, 0), (pad_l, pad_t - pad_l), (0, 0)),
-                       'constant', constant_values=0)
-
-    elif h < w:
-        ratio = size / w
-        image = cv2.resize(image, dsize=(size, int(h * ratio)))
-        h, _, _ = image.shape
-        pad_t = size - h
-        pad_l = pad_t // 2
-        image = np.pad(image,
-                       ((pad_l, pad_t - pad_l), (0, 0), (0, 0)),
-                       'constant', constant_values=0)
+def pad_and_resize(img: np.array, size=256):
+    old_h, old_w, _ = img.shape
+    pad = abs(old_w - old_h)
+    if (old_w > old_h):
+        dst = cv2.copyMakeBorder(img, pad // 2, pad // 2, 0, 0, cv2.BORDER_CONSTANT)
     else:
-        pass
-
-    return image
+        dst = cv2.copyMakeBorder(img, 0, 0, pad // 2, pad // 2, cv2.BORDER_CONSTANT)
+    dst = cv2.resize(dst, (size, size))
+    return dst
