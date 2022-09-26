@@ -8,7 +8,7 @@ from easydict import EasyDict
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 
-from utils import non_max_suppression, scale_coords, pad_and_resize, IMAGENET_MEAN, IMAGENET_STD
+from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, pad_and_resize, IMAGENET_MEAN, IMAGENET_STD
 from inference_session import initialize_session
 
 # 설정파일 로드
@@ -55,13 +55,16 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
     output = DETECTION_SESSION.run(None, {'images': img})[0]
     output = torch.tensor(output)
     output = non_max_suppression(output, config.detection.conf_thres, config.detection.iou_thres)[0]
+    conf_scores = output[:, 4]
     bboxes = scale_coords(img.shape[2:], output[:, :4], org_shape).round().type(torch.int)
+    bboxes, conf_scores = filter_invalid_bboxes(bboxes, conf_scores)
 
     if not len(bboxes):
         response = dict(
             bboxes=[],
+            conf_scores=[],
             diseases=[],
-            num_objects=len(bboxes)
+            num_objects=0
         )
         return JSONResponse(content=response)
 
@@ -98,6 +101,7 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
     # 응답 반환
     response = dict(
         bboxes=bboxes.tolist(),
+        conf_scores=conf_scores.tolist(),
         diseases=labels.tolist(),
         num_objects=len(bboxes)
     )
