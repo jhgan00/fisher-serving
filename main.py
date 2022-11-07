@@ -8,7 +8,7 @@ from easydict import EasyDict
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 
-from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, pad_and_resize, IMAGENET_MEAN, IMAGENET_STD
+from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, pad_and_resize, letterbox, IMAGENET_MEAN, IMAGENET_STD
 from inference_session import initialize_session
 
 # 설정파일 로드
@@ -47,7 +47,8 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
 
     org_shape = img0.shape[:-1]
 
-    img = cv2.resize(img0, (config.detection.input_size, config.detection.input_size))
+    # 모델 인풋 사이즈에 맞춰서 리사이징 (가로:세로 비율 보존)
+    img = letterbox(img0, (config.detection.input_size, config.detection.input_size), auto=False)[0]
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = img.astype(np.float32).transpose(2, 0, 1)[np.newaxis, ...]
     img /= 255.

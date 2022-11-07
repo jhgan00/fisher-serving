@@ -1,10 +1,10 @@
 # detection model config
 detection:
-  model_path: './resources/onnx/yolov5.onnx'
+  model_path: './resources/onnx/yolov5.latest.onnx'
   input_size: 640
   device_id: 0
   conf_thres: 0.25
-  iou_thres: 0.25
+  iou_thres: 0.45
 
 # classification model config
 classification:
