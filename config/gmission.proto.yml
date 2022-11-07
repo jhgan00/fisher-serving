@@ -15,8 +15,8 @@ classification:
 
 # segmentation model config
 segmentation:
-  model_path: './resources/onnx/unet.onnx'
+  model_path: './resources/onnx/deeplab.onnx'
   input_size: 256
   device_id: 0
   batch_size: 8
-  threshold: 0.6
+  threshold: 0.5

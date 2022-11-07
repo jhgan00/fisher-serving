@@ -76,15 +76,14 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
         roi = pad_and_resize(roi, size=config.segmentation.input_size)
         rois.append(roi)
 
-    rois = np.stack(rois).transpose(0, 3, 1, 2) / 255.
 
     ####################################################################################################################
     # 2. Segmentation
     ####################################################################################################################
 
-    # standardization
-    rois -= IMAGENET_MEAN
-    rois /= IMAGENET_STD
+    # normalization
+    rois = np.stack(rois).transpose(0, 3, 1, 2).astype(np.float32)
+    rois /= 255.
     rois = rois.astype(np.float32)
     batch_size = config.segmentation.batch_size
     seg_map = SEGMENTATION_SESSION.batch_run(rois, batch_size)
