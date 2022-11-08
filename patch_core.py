@@ -72,7 +72,7 @@ def save_anomaly_map(anomaly_map, input_img):
 
 class ResNetForPatchcoreEmbedding(nn.Module):
 
-    """패치코어 임베딩 추출을 위한 ResNet 모델"""
+    """패치코어 임베딩 추출을 위한 ResNet 모델: 기존 코드의 self.model 에서 사용된 훅을 제거하고 다시 구현"""
 
     def __init__(self, repo_name: str, model_name: str):
 
@@ -172,7 +172,7 @@ class STPM(nn.Module):
 
         # 각 패치별로 메모리 뱅크에서 가장 가까운 피쳐와의 거리를 찾기
         closest_dist = score_patches[torch.arange(batch_size), :, 0]
-        if batch_size == 1:  # expand batch dimension
+        if batch_size == 1:  # 배치 사이즈가 1인 경우 차원이 스퀴즈됨: 이 경우 다시 차원 확장
             closest_dist = closest_dist[np.newaxis, :]
 
         # 가장 가까운 피쳐와의 거리가 가장 먼 패치를 찾기
@@ -186,6 +186,7 @@ class STPM(nn.Module):
 
         score = w * closest_dist.max(axis=1)
 
+        # anomaly map 시각화 부분은 일단 제외함
         # anomaly_map = score_patches[torch.arange(batch_size), :, 0].reshape((batch_size, 28, 28))
         # # save images
         # inv_normalize = transforms.Normalize(mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
@@ -207,6 +208,10 @@ class STPM(nn.Module):
         return self.__call__(x)
 
     def batch_run(self, x: Union[torch.Tensor, np.ndarray], batch_size: int):
+        """
+        - 입력을 배치 단위로 쪼개서 처리.
+        - Onnxruntime BatchInference 세션과 인터페이스를 통일하기 위한 구현.
+        """
         result = []
         for i in range(0, len(x), batch_size):
             result.append(self.run(x[i:i + batch_size]))

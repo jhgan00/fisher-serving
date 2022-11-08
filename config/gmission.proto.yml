@@ -8,14 +8,14 @@ detection:
 
 # classification model config
 classification:
-  model_path: './resources/models/resnet50.onnx'
+  model_path: './resources/models/resnet50.latest.onnx'
   input_size: 128
   device_id: 0
   batch_size: 8
 
 # segmentation model config
 segmentation:
-  model_path: './resources/models/deeplab.onnx'
+  model_path: './resources/models/deeplab.latest.onnx'
   input_size: 256
   device_id: 0
   batch_size: 8
@@ -25,7 +25,7 @@ segmentation:
 anomaly:
   repo_name: 'pytorch/vision:v0.9.0'
   model_name:  'wide_resnet50_2'
-  index_path: './resources/index.faiss'
+  index_path: './resources/index.latest.faiss'
   k: 9
   input_size: 224
   device_id: 0
