@@ -6,5 +6,6 @@ PyYAML
 torch
 torchvision
 uvicorn
-onnxruntime
+onnxruntime-gpu
+onnx
 python-multipart
