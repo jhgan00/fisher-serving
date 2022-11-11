@@ -6,10 +6,10 @@ import numpy as np
 import torch
 import yaml
 from easydict import EasyDict
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile
 from fastapi.responses import JSONResponse
 
-from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, pad_and_resize, letterbox, IMAGENET_MEAN, IMAGENET_STD
+from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, letterbox, IMAGENET_MEAN, IMAGENET_STD, sigmoid
 from inference_session import initialize_session
 from patch_core import STPM
 
@@ -89,7 +89,7 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
     img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
     for i, (xmin, ymin, xmax, ymax) in enumerate(bboxes):
         roi = img[ymin:ymax + 1, xmin:xmax + 1, :]
-        roi = pad_and_resize(roi, size=config.segmentation.input_size)
+        roi, _, _ = letterbox(roi, new_shape=(config.segmentation.input_size, config.segmentation.input_size), color=(0, 0, 0))
         rois.append(roi)
     rois = np.stack(rois).astype(np.float32)
     rois = rois.transpose(0, 3, 1, 2)  # B x C x H x W
@@ -112,12 +112,14 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
     classification_rois -= IMAGENET_MEAN
     classification_rois /= IMAGENET_STD
     logits = CLASSIFICATION_SESSION.batch_run(classification_rois, config.classification.batch_size).flatten()
-    mask = logits > 0  # sigmoid 생략: 0 기준으로 몸통 전체 여부 판단
+    probs = sigmoid(logits)
+    mask = probs > config.classification.threshold  # sigmoid & threshold 적용하도록 수정
 
     ####################################################################################################################
     # 4. Anomaly detection
     ####################################################################################################################
 
+    anomaly_scores = np.array([0. for _ in range(len(rois))], dtype=np.float32)
     labels = np.array([0 for _ in range(len(rois))], dtype=np.uint8)
     if mask.any():
         anomaly_rois = rois[mask]  # 광어의 몸통 전체가 보이는 ROI 만을 선택 (B x H x W x C)
@@ -125,14 +127,17 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
         anomaly_rois = anomaly_rois.transpose(0, 3, 1, 2)  # (B x C x H x W)
         anomaly_rois -= IMAGENET_MEAN
         anomaly_rois /= IMAGENET_STD
-        anomaly_scores = ANOMALY_SESSION.batch_run(anomaly_rois, config.anomaly.batch_size)
-        labels[mask] = (anomaly_scores > config.anomaly.threshold).astype(np.uint8)
+        _anomaly_scores = ANOMALY_SESSION.batch_run(anomaly_rois, config.anomaly.batch_size)
+        labels[mask] = (_anomaly_scores > config.anomaly.threshold).astype(np.uint8)
+        anomaly_scores[mask] = _anomaly_scores
 
     # 응답 반환
     response = dict(
         bboxes=bboxes.tolist(),
         conf_scores=conf_scores.tolist(),
         diseases=labels.tolist(),
+        is_whole_body=mask.astype(np.uint8).tolist(),
+        anomaly_scores=anomaly_scores.tolist(),
         num_objects=len(bboxes)
     )
 

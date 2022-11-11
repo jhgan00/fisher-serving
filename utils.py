@@ -90,7 +90,7 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     return coords
 
 
-def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
+def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=False, scaleFill=False, scaleup=True, stride=32):
 
     """Resize and pad image while meeting stride-multiple constraints (from yolov5 PyTorch Implementation)"""
 
@@ -316,3 +316,8 @@ def pad_and_resize(img: np.array, size=256):
         dst = cv2.copyMakeBorder(img, 0, 0, pad // 2, pad // 2, cv2.BORDER_CONSTANT)
     dst = cv2.resize(dst, (size, size))
     return dst
+
+
+def sigmoid(x: np.ndarray):
+    assert x.ndim == 1, f"expected 1-dim array, but found {x.ndim}-dim array"
+    return 1 / (1 + np.exp(-x))

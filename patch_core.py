@@ -217,35 +217,3 @@ class STPM(nn.Module):
             result.append(self.run(x[i:i + batch_size]))
         result = np.concatenate(result)
         return result
-
-
-if __name__ == "__main__":
-
-    import glob
-    from PIL import Image
-    import numpy as np
-
-    k = 9
-    imgs = []
-    for img_fpath in glob.glob("./resources/sample-patchcore/*.jpg"):
-        img = Image.open(img_fpath)
-        img = np.array(img) / 255.
-        mask_fpath = img_fpath.replace("jpg", "npy")
-        if os.path.exists(mask_fpath):
-            mask = np.load(mask_fpath)[:, :, 0]  # result of segmentation model
-            mask = np.expand_dims(mask, 2)
-            img = img * mask
-        img = anomaly_preprocess(img).unsqueeze(0).float()
-        imgs.append(img)
-
-    x = torch.cat(imgs)
-    batch_size = x.size(0)
-
-    encoder = ResNetForPatchcoreEmbedding()
-    patch_core = STPM(index_fpath="./resources/index.faiss", k=9, threshold=7, device_id=0)
-
-    # get embeddings
-    out = encoder(x)  # (batch_size, 768, 1536) == (batch_size, h * w, embed_dim)
-    scores = patch_core(out)
-
-    print(scores > patch_core.threshold)
