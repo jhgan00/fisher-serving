@@ -12,8 +12,22 @@ class BatchInferenceSession(ort.InferenceSession):
         - onnx의 dynamic axis 를 활용하는 경우 추론 시간이 불안정한 문제가 있어서 이렇게 사용
         """
         result = []
+        io_binding = self.io_binding()
         for i in range(0, len(x), batch_size):
-            result.append(self.run(None, {'images': x[i:i + batch_size]})[0])
+            X = x[i:i+batch_size]
+            device_id = int(self.get_provider_options()['CUDAExecutionProvider']['device_id'])
+            X_ortvalue = ort.OrtValue.ortvalue_from_numpy(X, 'cuda', device_id)
+            io_binding.bind_input(
+                name=self.get_inputs()[0].name,
+                device_type=X_ortvalue.device_name(),
+                element_type=np.float32,
+                device_id=device_id,
+                shape=X_ortvalue.shape(),
+                buffer_ptr=X_ortvalue.data_ptr()
+            )
+            io_binding.bind_output(self.get_outputs()[0].name)
+            self.run_with_iobinding(io_binding)
+            result.append(io_binding.copy_outputs_to_cpu()[0])
         result = np.concatenate(result)
         return result
 
