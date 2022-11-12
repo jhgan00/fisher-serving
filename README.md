@@ -1,20 +1,26 @@
 # 해수부 모델 파이프라인 & 서빙 
 
-## Notice
-
-- API 작동은 테스트해봤지만 **예측이 제대로 작동하고 있는지는 아직 테스트 안해봤음**
-  - 다양한 오류 및 실수가 있을 수 있음
-  - 실제로 결과 받아서 그려봐야 할듯
-- 경로 설정이 fisher 서버 기준으로 되어있음
-  - `/home/fisher/Peoples/jhgan/fisher-serving`
-
 ## Requirements
 
+- 서버 관련 설정
+  - 호스트, 포트, 파이썬 가상환경 경로 등을 설정
+  - `ENV.sh` 을 사용하되, 해당 파일이 없으면 `ENV.sample.sh` 사용하도록 되어있음
+- 모델 관련 설정
+  - 모델 임계값, 디바이스, 배치 처리 사이즈 등을 설정
+  - `config/gmission.proto.yml`
+
 ```bash
-# fisher 서버
-# python 3.9.12
+# python 3.8.10
 pip install -r requirements.txt
-bash run.uvicorn.sh
-bash apitest.sh  # 서버 시작된 이후 API 작동 테스트
+bash run.gunicorn.sh
+
+# 테스트 스크립트
+python scripts/apitest.py
+bash scripts/apitest.sh
 ```
 
+# Endpoint
+
+- `/detection`
+  - 탐지된 광어 개체들의 바운딩 박스, 전체 몸통 여부, 질병 여부를 반환
+  - 전체 몸통이 보이지 않은 개체들에 대해서는 질병 여부를 판단하지 않음

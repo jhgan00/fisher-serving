@@ -1,22 +1,34 @@
 # detection model config
 detection:
-  model_path: './resources/onnx/yolov5.onnx'
+  model_path: './resources/models/yolov5.latest.onnx'
   input_size: 640
   device_id: 0
   conf_thres: 0.25
-  iou_thres: 0.25
+  iou_thres: 0.45
 
 # classification model config
 classification:
-  model_path: './resources/onnx/efficientnet.b0.onnx'
-  input_size: 256
+  model_path: './resources/models/resnet50.latest.onnx'
+  input_size: 128
   device_id: 0
   batch_size: 8
+  threshold: 0.5
 
 # segmentation model config
 segmentation:
-  model_path: './resources/onnx/unet.onnx'
+  model_path: './resources/models/deeplab.latest.onnx'
   input_size: 256
   device_id: 0
   batch_size: 8
-  threshold: 0.6
+  threshold: 0.5
+
+# anomaly detection model config
+anomaly:
+  repo_name: 'pytorch/vision:v0.9.0'
+  model_name:  'wide_resnet50_2'
+  index_path: './resources/index.latest.faiss'
+  k: 9
+  input_size: 224
+  device_id: 0
+  batch_size: 8
+  threshold: 15
