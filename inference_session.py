@@ -6,7 +6,7 @@ import numpy as np
 
 class BatchInferenceSession(ort.InferenceSession):
 
-    def batch_run(self, x: np.ndarray, batch_size: int):
+    def batch_run(self, x: np.ndarray, batch_size: int) -> np.ndarray:
         """
         - 주어진 입력을 최대 batch_size 만큼씩 나누어서 처리
         - onnx의 dynamic axis 를 활용하는 경우 추론 시간이 불안정한 문제가 있어서 이렇게 사용
@@ -42,7 +42,7 @@ def initialize_session(model_path: str, device_id: int = 0, warmup_runs: int = 1
         providers=['CUDAExecutionProvider'],
         provider_options=[{
             'device_id': device_id,
-            # "cudnn_conv_use_max_workspace": '1'
+            "cudnn_conv_use_max_workspace": '1'
         }],
         sess_options=so
     )

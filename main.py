@@ -22,14 +22,7 @@ config = EasyDict(config)
 DETECTION_SESSION = initialize_session(config.detection.model_path, config.detection.device_id)
 SEGMENTATION_SESSION = initialize_session(config.segmentation.model_path, config.segmentation.device_id)
 CLASSIFICATION_SESSION = initialize_session(config.classification.model_path, config.classification.device_id)
-ANOMALY_SESSION = STPM(
-    config.anomaly.repo_name,
-    config.anomaly.model_name,
-    config.anomaly.index_path,
-    config.anomaly.k,
-    config.anomaly.threshold,
-    config.anomaly.device_id,
-)
+ANOMALY_SESSION = initialize_session(config.anomaly.model_path, config.anomaly.device_id)
 
 app = FastAPI()
 
@@ -128,6 +121,7 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
         anomaly_rois -= IMAGENET_MEAN
         anomaly_rois /= IMAGENET_STD
         _anomaly_scores = ANOMALY_SESSION.batch_run(anomaly_rois, config.anomaly.batch_size)
+        _anomaly_scores = sigmoid(_anomaly_scores.squeeze())
         labels[mask] = (_anomaly_scores > config.anomaly.threshold).astype(np.uint8)
         anomaly_scores[mask] = _anomaly_scores
 

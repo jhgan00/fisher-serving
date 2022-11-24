@@ -15,7 +15,8 @@ if __name__ == "__main__":
     )
 
     HOST = os.environ.get("HOST", "127.0.0.1")
-    PORT = os.environ.get("PORT", 12000)
+    PORT = os.environ.get("PORT", 13000)
+    threshold = 0.5
 
     if not os.path.exists("response"):
         os.mkdir("./response")
@@ -36,9 +37,16 @@ if __name__ == "__main__":
         print(data)
 
         frame = cv2.imread(frame)
-        for label, (xmin, ymin, xmax, ymax) in zip(data['diseases'], data['bboxes']):
+        for bbox, prob, is_target in zip(data['bboxes'], data['anomaly_scores'], data['is_whole_body']):
+            xmin, ymin, xmax, ymax = bbox
+            if not is_target:
+                color = (128, 128, 128)
+                frame = cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 5)
+                continue
+            label = prob > threshold
             color = (36, 255, 12) if not label else (36, 36, 255)
             frame = cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 5)
-            if label:
-                cv2.putText(frame, "Abnormal", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 3, color, 5)
+            text = "Abnormal" if label else "Normal"
+            prob = prob if label else 1 - prob
+            cv2.putText(frame, f"{text}({prob:.2%})", (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 3, color, 5)
         cv2.imwrite(f"response/result.{i}.jpg", frame)
