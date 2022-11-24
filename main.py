@@ -11,7 +11,6 @@ from fastapi.responses import JSONResponse
 
 from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, letterbox, IMAGENET_MEAN, IMAGENET_STD, sigmoid
 from inference_session import initialize_session
-from patch_core import STPM
 
 # 설정파일 로드
 MODEL_CONFIG_FPATH = os.environ.get("MODEL_CONFIG_FPATH")
