@@ -9,3 +9,4 @@ uvicorn
 onnxruntime-gpu
 onnx
 python-multipart
+scipy

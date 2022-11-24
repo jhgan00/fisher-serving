@@ -6,14 +6,28 @@ import numpy as np
 
 class BatchInferenceSession(ort.InferenceSession):
 
-    def batch_run(self, x: np.ndarray, batch_size: int):
+    def batch_run(self, x: np.ndarray, batch_size: int) -> np.ndarray:
         """
         - 주어진 입력을 최대 batch_size 만큼씩 나누어서 처리
         - onnx의 dynamic axis 를 활용하는 경우 추론 시간이 불안정한 문제가 있어서 이렇게 사용
         """
         result = []
+        io_binding = self.io_binding()
         for i in range(0, len(x), batch_size):
-            result.append(self.run(None, {'images': x[i:i + batch_size]})[0])
+            X = x[i:i+batch_size]
+            device_id = int(self.get_provider_options()['CUDAExecutionProvider']['device_id'])
+            X_ortvalue = ort.OrtValue.ortvalue_from_numpy(X, 'cuda', device_id)
+            io_binding.bind_input(
+                name=self.get_inputs()[0].name,
+                device_type=X_ortvalue.device_name(),
+                element_type=np.float32,
+                device_id=device_id,
+                shape=X_ortvalue.shape(),
+                buffer_ptr=X_ortvalue.data_ptr()
+            )
+            io_binding.bind_output(self.get_outputs()[0].name)
+            self.run_with_iobinding(io_binding)
+            result.append(io_binding.copy_outputs_to_cpu()[0])
         result = np.concatenate(result)
         return result
 
@@ -28,7 +42,7 @@ def initialize_session(model_path: str, device_id: int = 0, warmup_runs: int = 1
         providers=['CUDAExecutionProvider'],
         provider_options=[{
             'device_id': device_id,
-            # "cudnn_conv_use_max_workspace": '1'
+            "cudnn_conv_use_max_workspace": '1'
         }],
         sess_options=so
     )

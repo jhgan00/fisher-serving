@@ -1,6 +1,6 @@
 # detection model config
 detection:
-  model_path: './resources/models/yolov5.latest.onnx'
+  model_path: './resources/models/yolov5.latest.amp.onnx'
   input_size: 640
   device_id: 0
   conf_thres: 0.25
@@ -8,7 +8,7 @@ detection:
 
 # classification model config
 classification:
-  model_path: './resources/models/resnet50.latest.onnx'
+  model_path: './resources/models/resnet50.latest.amp.onnx'
   input_size: 128
   device_id: 0
   batch_size: 8
@@ -16,19 +16,16 @@ classification:
 
 # segmentation model config
 segmentation:
-  model_path: './resources/models/deeplab.latest.onnx'
-  input_size: 256
+  model_path: './resources/models/deeplab.latest.amp.onnx'
+  input_size: 224
   device_id: 0
   batch_size: 8
   threshold: 0.5
 
 # anomaly detection model config
 anomaly:
-  repo_name: 'pytorch/vision:v0.9.0'
-  model_name:  'wide_resnet50_2'
-  index_path: './resources/index.latest.faiss'
-  k: 9
+  model_path: './resources/models/vit.latest.amp.onnx'
   input_size: 224
   device_id: 0
   batch_size: 8
-  threshold: 15
+  threshold: 0.5

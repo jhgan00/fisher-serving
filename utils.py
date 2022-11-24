@@ -319,5 +319,5 @@ def pad_and_resize(img: np.array, size=256):
 
 
 def sigmoid(x: np.ndarray):
-    assert x.ndim == 1, f"expected 1-dim array, but found {x.ndim}-dim array"
+    assert x.ndim < 2, f"expected 1-dim or 0-dim array, but found {x.ndim}-dim array"
     return 1 / (1 + np.exp(-x))
