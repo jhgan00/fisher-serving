@@ -9,8 +9,13 @@ from easydict import EasyDict
 from fastapi import FastAPI, UploadFile
 from fastapi.responses import JSONResponse
 
-from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, letterbox, IMAGENET_MEAN, IMAGENET_STD, sigmoid
+from utils import non_max_suppression, scale_coords, filter_invalid_bboxes, letterbox
+from utils import IMAGENET_MEAN, IMAGENET_STD
+from utils import sigmoid, encode_base64
+
 from inference_session import initialize_session
+from patch_core import STPM
+
 
 # 설정파일 로드
 MODEL_CONFIG_FPATH = os.environ.get("MODEL_CONFIG_FPATH")
@@ -22,7 +27,14 @@ DETECTION_SESSION = initialize_session(config.detection.model_path, config.detec
 SEGMENTATION_SESSION = initialize_session(config.segmentation.model_path, config.segmentation.device_id)
 CLASSIFICATION_SESSION = initialize_session(config.classification.model_path, config.classification.device_id)
 ANOMALY_SESSION = initialize_session(config.anomaly.model_path, config.anomaly.device_id)
-
+PATCHCORE_SESSION = STPM(
+    config.patchcore.repo_name,
+    config.patchcore.model_name,
+    config.patchcore.index_path,
+    config.patchcore.k,
+    config.patchcore.threshold,
+    config.patchcore.device_id,
+)
 app = FastAPI()
 
 
@@ -112,6 +124,7 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
     ####################################################################################################################
 
     anomaly_scores = np.array([0. for _ in range(len(rois))], dtype=np.float32)
+    anomaly_maps = np.array(["" for _ in range(len(rois))], dtype=object)
     labels = np.array([0 for _ in range(len(rois))], dtype=np.uint8)
     if mask.any():
         anomaly_rois = rois[mask]  # 광어의 몸통 전체가 보이는 ROI 만을 선택 (B x H x W x C)
@@ -119,10 +132,13 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
         anomaly_rois = anomaly_rois.transpose(0, 3, 1, 2)  # (B x C x H x W)
         anomaly_rois -= IMAGENET_MEAN
         anomaly_rois /= IMAGENET_STD
-        _anomaly_scores = ANOMALY_SESSION.batch_run(anomaly_rois, config.anomaly.batch_size)
-        _anomaly_scores = sigmoid(_anomaly_scores.squeeze())
-        labels[mask] = (_anomaly_scores > config.anomaly.threshold).astype(np.uint8)
-        anomaly_scores[mask] = _anomaly_scores
+        scores = ANOMALY_SESSION.batch_run(anomaly_rois, config.anomaly.batch_size)
+        _, maps = PATCHCORE_SESSION.batch_run(anomaly_rois, config.anomaly.batch_size)
+        maps = np.array([encode_base64(m) for m in maps], dtype=object)
+        scores = sigmoid(scores.squeeze())
+        labels[mask] = (scores > config.anomaly.threshold).astype(np.uint8)
+        anomaly_maps[mask] = maps
+        anomaly_scores[mask] = scores
 
     # 응답 반환
     response = dict(
@@ -131,6 +147,7 @@ async def get_bboxes_and_diseases(file: UploadFile) -> JSONResponse:
         diseases=labels.tolist(),
         is_whole_body=mask.astype(np.uint8).tolist(),
         anomaly_scores=anomaly_scores.tolist(),
+        anomaly_maps=anomaly_maps.tolist(),
         num_objects=len(bboxes)
     )
 

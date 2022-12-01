@@ -1,8 +1,12 @@
+import base64
+import io
 import math
 import time
+from typing import Union
 
 import cv2
 import numpy as np
+from PIL import Image
 import torch
 import torchvision
 
@@ -321,3 +325,11 @@ def pad_and_resize(img: np.array, size=256):
 def sigmoid(x: np.ndarray):
     assert x.ndim < 2, f"expected 1-dim or 0-dim array, but found {x.ndim}-dim array"
     return 1 / (1 + np.exp(-x))
+
+
+def encode_base64(img: Union[Image.Image, np.ndarray, torch.Tensor]):
+    if isinstance(img, np.ndarray):
+        img = Image.fromarray(img)
+    buffered = io.BytesIO()
+    img.save(buffered, "jpeg")
+    return base64.b64encode(buffered.getvalue()).decode()
