@@ -8,42 +8,6 @@ import faiss
 
 import numpy as np
 from typing import Union
-from scipy.ndimage import gaussian_filter
-
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-
-def min_max_norm(image):
-    a_min, a_max = image.min(), image.max()
-    #a_max = 11
-    #a_min = 3
-    return (image-a_min)/(a_max - a_min)
-
-
-def cvt2heatmap(gray):
-    heatmap = cv2.applyColorMap(np.uint8(gray), cv2.COLORMAP_JET)
-    return heatmap
-
-
-def heatmap_on_image(heatmap, image):
-    if heatmap.shape != image.shape:
-        heatmap = cv2.resize(heatmap, (image.shape[0], image.shape[1]))
-    out = np.float32(heatmap[:,:,[2, 1, 0]])/255 + np.float32(image)/255
-    out = out / np.max(out)
-    return np.uint8(255 * out)
-
-
-def blend_anomaly_map(anomaly_map, input_img):
-    if anomaly_map.shape != input_img.shape:
-        anomaly_map = cv2.resize(anomaly_map, (input_img.shape[0], input_img.shape[1]))
-
-    anomaly_map_norm = min_max_norm(anomaly_map)
-    # anomaly map on image
-    heatmap = cvt2heatmap(anomaly_map_norm * 255)
-    hm_on_img = heatmap_on_image(heatmap, input_img)
-    return hm_on_img
 
 
 class ResNetForPatchcoreEmbedding(nn.Module):
@@ -123,8 +87,8 @@ class STPM(nn.Module):
             std=[1 / 0.229, 1 / 0.224, 1 / 0.225]
         )
         self.index = faiss.read_index(index_fpath)
-        res = faiss.StandardGpuResources()
-        self.index = faiss.index_cpu_to_gpu(res, device_id, self.index)
+        # res = faiss.StandardGpuResources()
+        # self.index = faiss.index_cpu_to_gpu(res, device_id, self.index)
 
         self.k = k
         self.threshold = threshold
@@ -173,20 +137,7 @@ class STPM(nn.Module):
         # anomaly map 시각화 부분은 일단 제외함
         anomaly_maps = score_patches[torch.arange(batch_size), :, 0].reshape((batch_size, 28, 28))
 
-        # save images
-        inv_normalize = transforms.Normalize(mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
-                                             std=[1 / 0.229, 1 / 0.224, 1 / 0.225])
-
-        visualizations = []
-        for img, anomaly_map in zip(x_org, anomaly_maps):
-            img = inv_normalize(img)
-            input_x = (img.permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
-            anomaly_map = cv2.resize(anomaly_map, (224, 224))
-            anomaly_map = gaussian_filter(anomaly_map, sigma=4)
-            hm_on_img = blend_anomaly_map(anomaly_map, input_x)
-            visualizations.append(hm_on_img)
-
-        return score, visualizations
+        return score, anomaly_maps  # visualizations
 
     def run(self, x):
         return self.__call__(x)

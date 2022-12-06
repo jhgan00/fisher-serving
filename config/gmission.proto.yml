@@ -1,22 +1,31 @@
 # detection model config
 detection:
-  model_path: './resources/models/yolov5.latest.amp.onnx'
+  model_path: './resources/models/yolov5.latest.onnx'
   input_size: 640
   device_id: 0
   conf_thres: 0.25
   iou_thres: 0.45
 
 # classification model config
-classification:
-  model_path: './resources/models/resnet50.latest.amp.onnx'
+fish_classification:
+  model_path: './resources/models/efficientnet-b0.1205.onnx'
   input_size: 128
   device_id: 0
   batch_size: 8
-  threshold: 0.5
+  target_index: 3  # 어종 중 넙치의 인덱스
+
+# classification model config
+classification:
+  model_path: './resources/models/resnet50.latest.onnx'
+  input_size: 128
+  device_id: 0
+  batch_size: 8
+  threshold: 0.4
+  temperature: 2.0
 
 # segmentation model config
 segmentation:
-  model_path: './resources/models/deeplab.latest.amp.onnx'
+  model_path: './resources/models/deeplab.latest.onnx'
   input_size: 224
   device_id: 0
   batch_size: 8
@@ -24,7 +33,7 @@ segmentation:
 
 # anomaly detection model config
 anomaly:
-  model_path: './resources/models/vit.latest.amp.onnx'
+  model_path: './resources/models/vit.latest.onnx'
   input_size: 224
   device_id: 0
   batch_size: 8

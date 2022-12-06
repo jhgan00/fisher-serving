@@ -2,13 +2,16 @@ import base64
 import io
 import math
 import time
-from typing import Union
+from typing import Union, Tuple
 
 import cv2
 import numpy as np
 from PIL import Image
 import torch
 import torchvision
+
+from scipy.ndimage import gaussian_filter
+
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1).astype(np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1).astype(np.float32)
@@ -126,7 +129,7 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=False, scale
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
-    return im, ratio, (dw, dh)
+    return im # , ratio, (dw, dh)
 
 
 def clip_coords(boxes, img_shape):
@@ -332,4 +335,34 @@ def encode_base64(img: Union[Image.Image, np.ndarray, torch.Tensor]):
         img = Image.fromarray(img)
     buffered = io.BytesIO()
     img.save(buffered, "jpeg")
-    return base64.b64encode(buffered.getvalue()).decode()
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+def min_max_norm(image):
+    a_min, a_max = image.min(), image.max()
+    #a_max = 11
+    #a_min = 3
+    return (image-a_min)/(a_max - a_min)
+
+
+def postprocess_anomaly_maps(anomaly_maps: np.ndarray, dsize: Tuple[int, int]) -> np.ndarray:
+    """Resize -> Gaussian Filter -> Apply ColorMap"""
+
+    n = len(anomaly_maps)
+    w, h = dsize
+
+    # H x W x C
+    heatmaps = np.zeros(shape=(n, h, w, 3), dtype=np.uint8)
+
+    # 원본 크기로 리사이징
+    for i, anomaly_map in enumerate(anomaly_maps):
+
+        anomaly_map = cv2.resize(anomaly_map, dsize=(w, h))
+        anomaly_map = gaussian_filter(anomaly_map, sigma=4)
+        anomaly_map = min_max_norm(anomaly_map) * 255.
+        heatmap = cv2.applyColorMap(np.uint8(anomaly_map), cv2.COLORMAP_JET)
+        heatmaps[i, ...] = heatmap
+
+    heatmaps = heatmaps.transpose(0, 3, 1, 2)
+
+    return heatmaps
